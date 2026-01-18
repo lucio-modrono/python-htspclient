@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 __author__ = 'Christian Karrié <christian@karrie.info>'
 
-from distutils.core import setup
+from setuptools import setup
 
 # Dynamically calculate the version based on ccm.VERSION
 version_tuple = __import__('tvh').VERSION
