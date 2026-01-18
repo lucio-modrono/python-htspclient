@@ -150,6 +150,19 @@ class HTSPApi(object):
         })
         return self.htsp.recv()
 
+    def delete_channels(self, uuids):
+        nodes = []
+        for uuid in uuids:
+            nodes.append({'uuid': uuid})
+        args = {
+            'node': nodes
+        }
+        self.htsp.send('api', {
+            'path': 'idnode/delete',
+            'args': args
+        })
+        return self.htsp.recv()
+
     def get_epg(self, kwargs={}):
         self.htsp.send('api', {
             'path': 'epg/events/grid',
