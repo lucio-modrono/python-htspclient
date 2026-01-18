@@ -11,7 +11,7 @@ version = ".".join([str(v) for v in version_tuple])
 setup(
     name='python-htspclient',
     description='TVHeadend HTSP Client Library',
-    version=version,
+    version='1.0',
     author='Christian Karrie',
     author_email='ckarrie@gmail.com',
     url='https://bitbucket.org/ckarrie/python-htspclient',
