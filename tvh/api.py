@@ -153,9 +153,9 @@ class HTSPApi(object):
     def delete_channels(self, uuids):
         nodes = []
         for uuid in uuids:
-            nodes.append({'uuid': uuid})
+            nodes.append(uuid)
         args = {
-            'node': nodes
+            'uuid': nodes
         }
         self.htsp.send('api', {
             'path': 'idnode/delete',
