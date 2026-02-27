@@ -1,4 +1,4 @@
-FROM python:3
+FROM python:3.11-slim
 WORKDIR /usr/src/app
 RUN git clone https://github.com/lucio-modrono/python-htspclient
 WORKDIR python-htspclient
