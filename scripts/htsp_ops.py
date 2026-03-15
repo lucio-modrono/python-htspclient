@@ -1,9 +1,11 @@
 import sys
 from tvh.htsp import HTSPClient
 from tvh.api import HTSPApi
-#from .scripts import CONFIG
+from scripts import CONFIG
 import tvh.log
 import binascii
+import time
+import json
 
 try:
     limit = int(sys.argv[1])
@@ -23,48 +25,50 @@ htsp.authenticate('','')
 #log.debug_init(0)
 htspapi = HTSPApi(htsp=htsp)
 
-muxes_kwargs = {
-    'start': 0,
-    'limit': 999999,
-    'sort': 'name',
-    'dir': 'ASC',
-    'filter': [
-#        {'type': 'string', 'value': 'scraper-ts', 'field': 'network'},
-#        {'type': 'numeric', 'comparison': 'gt', 'value': 1, 'intsplit': 1000000, 'field': 'num_chn'},
-        {'type': 'numeric', 'comparison': 'gt', 'value': 2, 'intsplit': 1000000, 'field': 'scan_result'}
-    ],
-    'all': 1
-}
+def get_failed_muxes():
+    failed_muxes_kwargs = {
+        'start': 0,
+        'limit': 999999,
+        'sort': 'name',
+        'dir': 'ASC',
+        'filter': [
+            {'type': 'numeric', 'comparison': 'gt', 'value': htspapi.MUX_SCAN_RESULT_FAILED, 'intsplit': 1000000, 'field': 'scan_result'}
+        ],
+        'all': 1
+    }
+    return htspapi.get_muxes_grid(kwargs=failed_muxes_kwargs)
 
-muxes = htspapi.get_muxes_grid(kwargs=muxes_kwargs)
-for mux in muxes:
+def get_old_muxes(days=5):
+    # Calcular el timestamp dinámico (segundos actuales - segundos en N días)
+    seconds_in_day = 86400
+    timestamp_limit = int(time.time()) - (days * seconds_in_day)
+
+    old_muxes_kwargs = {
+        'start': 0,
+        'limit': 999999,
+        'sort': 'name',
+        'dir': 'ASC',
+        'filter': [
+            {'type': 'numeric', 'comparison': 'eq', 'value': htspapi.MUX_SCAN_RESULT_OK, 'field': 'scan_result'},
+            {'type': 'numeric', 'comparison': 'lt', 'value': timestamp_limit, 'field': 'scan_last'}
+        ],
+        'all': 1
+    }
+    print(f"Filtro de búsqueda para muxes antiguos: {json.dumps(old_muxes_kwargs)}")
+    return htspapi.get_muxes_grid(kwargs=old_muxes_kwargs)
+
+# Borrar muxes con error
+for mux in get_failed_muxes():
     mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
     print ("Delete mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
     print ( "%s" % (htspapi.delete_channels([mux_uuid])))
 
-#channels_kwargs = {
-#    'start': 0,
-#    'limit': 999999,
-#    'sort': 'name',
-#    'dir': 'ASC',
-#    'all': 1
-#}
-
-#channels = htspapi.get_channels_grid(kwargs=channels_kwargs)
-#for channel in channels:
-#    print ("%s;%s" % (channel.get('name'), channel))
-#    name_regex = '^%s$' % mux.get('name')
-#    icon = mux.get('icon')
-#    services = channel.get('services')
-#    services = htspapi.get_serviceuuids_from_channeluuid(channel.get('uuid'))
-#    multiplex_value = ''
-#    for service_uuid in services:
-#        print ("%s" % (service_uuid))
-#        service = htspapi.get_idnode_value(service_uuid, 'response')
-#        print ("%s" % (service))
-#        for pdict in service
-#            pid = pdict.get('id')
-#            if pid == 'multiplex':
-#                multiplex_value = pdict.get('value')
-
-#    print ("%s;%s;%s" % (name_regex, icon, multiplex_value))
+# Marcar para escaneo los muxes que lleven más de 5 días sin escanear
+#muxes = get_old_muxes()
+#old_mux_uuids = [m.get('uuid') for m in muxes]
+#htspapi.update_channels(old_mux_uuids, data={'scan_state': htspapi.MUX_SCAN_STATUS_PENDING})
+#print(f"Orden de reescaneo enviada para {len(muxes)} muxes.")
+for mux in get_old_muxes():
+    mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
+    print ("Reescaning mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
+    print ( "%s" % (htspapi.update_channels([mux_uuid], data={'scan_state': htspapi.MUX_SCAN_STATUS_PENDING})))
