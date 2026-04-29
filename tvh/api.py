@@ -33,6 +33,46 @@ class HTSPApi(object):
 
         return found
 
+    def get_active_subscriptions_grid(self, kwargs={}):
+        """
+        Fetch active subscriptions, excluding auto scan ones
+        """
+        self.htsp.send('api', {'path': 'status/subscriptions', 'args': kwargs})
+        msg = self.htsp.recv()
+        return [e for e in msg['response']['entries'] if e.get('title') != 'scan']
+
+    def get_networks_grid(self, kwargs={}):
+        self.htsp.send('api', {'path': 'mpegts/network/grid', 'args': kwargs})
+        msg = self.htsp.recv()
+        return msg['response']['entries']
+
+    def update_network(self, uuid, url_sufix='&n=0', ):
+        args = {
+            'node': [
+                {'uuid': uuid}
+            ]
+        }
+        network = get_networks_grid(self, args)
+        if 'url' in network:
+            url = str(network['url'])
+            if url.endswith(url_sufix):
+                args = {
+                    'node': [
+                        {'uuid': uuid, 'url': url[:-len(url_sufix)]}
+                    ]
+                }
+            else:
+                args = {
+                    'node': [
+                        {'uuid': uuid, 'url': url+url_sufix}
+                    ]
+                }
+        self.htsp.send('api', {
+            'path': 'idnode/save',
+            'args': args
+        })
+        return self.htsp.recv()
+
     def get_channels_grid(self, kwargs={}):
         self.htsp.send('api', {'path': 'channel/grid', 'args': kwargs})
         msg = self.htsp.recv()
