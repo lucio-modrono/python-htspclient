@@ -45,7 +45,7 @@ class HTSPApi(object):
         msg = self.htsp.recv()
         return msg['response']['entries']
 
-    def update_network(self, uuid, url_sufix='&n=0', ):
+    def update_network(self, uuid, url_sufix='&n=0'):
         self.htsp.send('api', {'path': 'idnode/load', 'args': {'uuid': uuid, 'grid': 1 }})
         network = self.htsp.recv()['response']['entries'][0]
         if network['url']:
