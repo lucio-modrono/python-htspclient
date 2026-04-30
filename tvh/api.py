@@ -52,7 +52,7 @@ class HTSPApi(object):
                 {'uuid': uuid}
             ]
         }
-        network = get_networks_grid(self, args)
+        network = this.get_networks_grid(args)
         if 'url' in network:
             url = str(network['url'])
             if url.endswith(url_sufix):
