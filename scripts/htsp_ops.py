@@ -79,31 +79,28 @@ def get_old_muxes(days=5):
     print(f"Filtro de búsqueda para muxes antiguos: {json.dumps(old_muxes_kwargs)}")
     return htspapi.get_muxes_grid(kwargs=old_muxes_kwargs)
 
-def main():
-    espera_larga = 60  # Segundos si el valor es > 0
-    espera_seguridad = 15  # Segundos entre las N comprobaciones
-    N = 6  # Número de comprobaciones de seguridad
-    necesita_seguridad = False # Esta variable rastrea si venimos de un valor mayor a cero
+def wait_for_idle(long_wait_time=60, security_wait_time=15, security_tries=6):
+    need_security_tries = False # Esta variable rastrea si venimos de un valor mayor a cero
 
     while True:
         valor = count_current_suscriptions()
 
         # CASO 1: Si es mayor a cero, esperamos y volvemos al inicio del bucle
         if valor > 0:
-            print(f"Currently serving {valor} stream(s), wait and retry in {espera_larga}s...")
-            necesita_seguridad = True  # Activamos la bandera de seguridad
-            time.sleep(espera_larga)
+            print(f"Currently serving {valor} stream(s), wait and retry in {long_wait_time}s...")
+            need_security_tries = True  # Activamos la bandera de seguridad
+            time.sleep(long_wait_time)
             continue  # Salta al inicio del while para volver a rescatar el valor
 
         # CASO 2: Si es cero, entramos en la fase de seguridad
         # Si llegamos aquí, valor es 0.
         # Comprobamos si hay que aplicar seguridad o seguir de largo
-        if necesita_seguridad:
-            print(f"Service is idle now, waiting {N} times of {espera_seguridad}s to ensure it...")
+        if need_security_tries:
+            print(f"Service is idle now, waiting {security_tries} times of {security_wait_time}s to ensure it...")
             estable = True
 
-            for _ in range(N):
-                time.sleep(espera_seguridad)
+            for _ in range(security_tries):
+                time.sleep(security_wait_time)
                 if count_current_suscriptions() > 0:
                     print("Serving streams again, wait for idle...")
                     estable = False
@@ -115,18 +112,32 @@ def main():
         # Si el valor fue 0 desde el inicio o pasó la seguridad
         break
 
-    print("Re-fetching networks...")
-    refresh_networks()
-
-    time.sleep(espera_larga*5)
+def main():
+    # Esperar a que no haya reproducciones en curso
+    wait_for_idle()
 
     # Borrar muxes con error
+    print("**************************************************************", flush=True)
+    print("***  Deleting channels with failed scan...                 ***", flush=True)
+    print("**************************************************************", flush=True)
     for mux in get_failed_muxes():
         mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
         print ("Delete mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
         print ( "%s" % (htspapi.delete_channels([mux_uuid])))
 
+    # Reescanear redes IPTV
+    print("**************************************************************", flush=True)
+    print("***  Re-fetching networks...                               ***", flush=True)
+    print("**************************************************************", flush=True)
+    refresh_networks()
+
+    # Espera 5 min para estabilización de redes
+    time.sleep(60*5)
+
     # Marcar para escaneo los muxes que lleven más de 5 días sin escanear
+    print("**************************************************************", flush=True)
+    print("***  Mark for scan old muxes...                            ***", flush=True)
+    print("**************************************************************", flush=True)
     for mux in get_old_muxes():
         mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
         print ("Reescaning mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
