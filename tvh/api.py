@@ -1,6 +1,5 @@
 from tvh import utils
 
-
 class HTSPApi(object):
     EPG_IGNORE = -1
     EPG_DISABLE = 0
@@ -47,31 +46,26 @@ class HTSPApi(object):
         return msg['response']['entries']
 
     def update_network(self, uuid, url_sufix='&n=0', ):
-        args = {
-            'node': [
-                {'uuid': uuid}
-            ]
-        }
-        network = this.get_networks_grid(args)
-        if 'url' in network:
-            url = str(network['url'])
+        self.htsp.send('api', {'path': 'idnode/load', 'args': {'uuid': uuid, 'grid': 1 }})
+        network = self.htsp.recv()['response']['entries'][0]
+        if network['url']:
+            url = network['url']
             if url.endswith(url_sufix):
-                args = {
-                    'node': [
-                        {'uuid': uuid, 'url': url[:-len(url_sufix)]}
-                    ]
-                }
+                network['url'] = url[:-len(url_sufix)]
             else:
-                args = {
-                    'node': [
-                        {'uuid': uuid, 'url': url+url_sufix}
-                    ]
-                }
-        self.htsp.send('api', {
-            'path': 'idnode/save',
-            'args': args
-        })
-        return self.htsp.recv()
+                network['url'] = url+url_sufix
+
+            network['uuid'] = uuid
+
+            for k, v in network.items():
+                if v is None:
+                    network[k] = False
+
+            self.htsp.send('api', {
+                'path': 'idnode/save',
+                'args': { 'node':  network }
+            })
+            return self.htsp.recv()
 
     def get_channels_grid(self, kwargs={}):
         self.htsp.send('api', {'path': 'channel/grid', 'args': kwargs})
@@ -207,5 +201,3 @@ class HTSPApi(object):
         })
         msg = self.htsp.recv()
         return msg['response']['entries']
-
-
