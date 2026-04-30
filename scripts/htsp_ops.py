@@ -96,7 +96,7 @@ def wait_for_idle(long_wait_time=60, security_wait_time=15, security_tries=6):
         # Si llegamos aquí, valor es 0.
         # Comprobamos si hay que aplicar seguridad o seguir de largo
         if need_security_tries:
-            print(f"Service is idle now, waiting {security_tries} times of {security_wait_time}s to ensure it...")
+            print(f"Service is idle now, checking {security_tries} times each {security_wait_time}s to ensure it...")
             estable = True
 
             for _ in range(security_tries):
