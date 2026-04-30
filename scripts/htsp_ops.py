@@ -43,8 +43,9 @@ def refresh_networks():
     }
     for network in htspapi.get_networks_grid(networks_kwargs):
         network_uuid = binascii.hexlify(network.get('uuid')).decode('utf-8')
-        print ("Re-fetching network: uuid: %s; network: %s" % (network_uuid, mux.get('networkname')))
+        print ("Re-fetching network: uuid: %s; network: %s; url: %s" % (network_uuid, network.get('networkname'), network.get('url')))
         print ( "%s" % (htspapi.update_network(network_uuid)))
+    return True
 
 def get_failed_muxes():
     failed_muxes_kwargs = {
@@ -79,23 +80,59 @@ def get_old_muxes(days=5):
     return htspapi.get_muxes_grid(kwargs=old_muxes_kwargs)
 
 def main():
-    if count_current_suscriptions() == 0:
-        refresh_networks()
-        
-#        # Borrar muxes con error
-#        for mux in get_failed_muxes():
-#            mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
-#            print ("Delete mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
-#            print ( "%s" % (htspapi.delete_channels([mux_uuid])))
-#        
-#        # Marcar para escaneo los muxes que lleven más de 5 días sin escanear
-#        #muxes = get_old_muxes()
-#        #old_mux_uuids = [m.get('uuid') for m in muxes]
-#        #htspapi.update_channels(old_mux_uuids, data={'scan_state': htspapi.MUX_SCAN_STATUS_PENDING})
-#        #print(f"Orden de reescaneo enviada para {len(muxes)} muxes.")
-#        for mux in get_old_muxes():
-#            mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
-#            print ("Reescaning mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
-#            print ( "%s" % (htspapi.update_channels([mux_uuid], data={'scan_state': htspapi.MUX_SCAN_STATUS_PENDING})))
+    espera_larga = 60  # Segundos si el valor es > 0
+    espera_seguridad = 15  # Segundos entre las N comprobaciones
+    N = 6  # Número de comprobaciones de seguridad
+    necesita_seguridad = False # Esta variable rastrea si venimos de un valor mayor a cero
+
+    while True:
+        valor = count_current_suscriptions()
+
+        # CASO 1: Si es mayor a cero, esperamos y volvemos al inicio del bucle
+        if valor > 0:
+            print(f"Currently serving {valor} stream(s), wait and retry in {espera_larga}s...")
+            necesita_seguridad = True  # Activamos la bandera de seguridad
+            time.sleep(espera_larga)
+            continue  # Salta al inicio del while para volver a rescatar el valor
+
+        # CASO 2: Si es cero, entramos en la fase de seguridad
+        # Si llegamos aquí, valor es 0.
+        # Comprobamos si hay que aplicar seguridad o seguir de largo
+        if necesita_seguridad:
+            print(f"Service is idle now, waiting {N} times of {espera_seguridad}s to ensure it...")
+            estable = True
+
+            for _ in range(N):
+                time.sleep(espera_seguridad)
+                if count_current_suscriptions() > 0:
+                    print("Serving streams again, wait for idle...")
+                    estable = False
+                    break # Sale del for, vuelve al while
+
+            if not estable:
+                continue # Reevalúa desde el principio del while
+
+        # Si el valor fue 0 desde el inicio o pasó la seguridad
+        break
+
+    print("Re-fetching networks...")
+    refresh_networks()
+
+    time.sleep(espera_larga*5)
+
+    # Borrar muxes con error
+    for mux in get_failed_muxes():
+        mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
+        print ("Delete mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
+        print ( "%s" % (htspapi.delete_channels([mux_uuid])))
+
+    # Marcar para escaneo los muxes que lleven más de 5 días sin escanear
+    for mux in get_old_muxes():
+        mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
+        print ("Reescaning mux: uuid: %s; network: %s;  name: %s; tags: %s" % (mux_uuid, mux.get('network'), mux.get('iptv_sname'), mux.get('iptv_tags')))
+        print ( "%s" % (htspapi.update_channels([mux_uuid], data={'scan_state': htspapi.MUX_SCAN_STATUS_PENDING})))
+
+    print("All done, stopping...")
+    return True
 
 main()
