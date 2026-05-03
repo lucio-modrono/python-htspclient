@@ -136,7 +136,7 @@ def main():
 
     # Marcar para escaneo los muxes que lleven más de 5 días sin escanear
     print("**************************************************************", flush=True)
-    print("***  Mark for scan old muxes...                            ***", flush=True)
+    print("***  Mark for scan old muxes (more than 5 days)...         ***", flush=True)
     print("**************************************************************", flush=True)
     for mux in get_old_muxes():
         mux_uuid = binascii.hexlify(mux.get('uuid')).decode('utf-8')
