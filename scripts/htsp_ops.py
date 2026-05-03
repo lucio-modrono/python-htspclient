@@ -76,7 +76,7 @@ def get_old_muxes(days=5):
         ],
         'all': 1
     }
-    print(f"Filtro de búsqueda para muxes antiguos: {json.dumps(old_muxes_kwargs)}")
+    #print(f"Filtro de búsqueda para muxes antiguos: {json.dumps(old_muxes_kwargs)}")
     return htspapi.get_muxes_grid(kwargs=old_muxes_kwargs)
 
 def wait_for_idle(long_wait_time=60, security_wait_time=15, security_tries=6):
